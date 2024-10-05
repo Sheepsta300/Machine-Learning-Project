@@ -1,3 +1,7 @@
+# Random files
+dataset_tidying.ipynb
+best_metrics.txt
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
