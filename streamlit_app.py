@@ -2,43 +2,93 @@ import streamlit as st
 import pandas as pd
 import folium
 import os
-import xgboost as xg
+import xgboost as xgb
+import data_cleaning as dc
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
 
 from streamlit_folium import st_folium
 from folium.plugins import Search
 
+global_regions = ['Auckland', 
+           'Bay of Plenty', 
+           'Canterbury', 
+           'Gisborne', 
+           "Hawke's Bay",
+            'Manawatu', 
+            'Marlborough', 
+            'Nelson', 
+            'Northland', 
+            'Otago',
+            'Southland', 
+            'Taranaki', 
+            'Tasman', 
+            'Waikato', 
+            'Wellington', 
+            'West Coast']
 
 @st.cache_data
 def get_data():
     cwd = os.getcwd()
-    dir = f'{cwd}/datasets/regional'
-    regional_data = []
+    dir = f'{cwd}/datasets/processed'
+    regional_data = {}
+    i = 0
     for file in os.listdir(dir):
         data = pd.read_csv(os.path.join(dir, file))
-        data.index = data.date
-        data.index = pd.to_datetime(data.index)
-        data = data[[data.columns[2], data.columns[3]]] 
-        regional_data.append(data)
-    
+        dc.clean(data)
+        regional_data[global_regions[i]] = data
+        i+= 1
     return regional_data
 
-# def train_models(regional_data):
-#     params = {'colsample_bytree': 0.9, 
-#               'learning_rate': 0.1, 
-#               'max_depth': 5, 
-#               'min_child_weight': 5, 
-#               'n_estimators': 100, 
-#               'subsample': 1.0}
-#     return
+def train_model(df):
+    
+    last_pred = None
+    current_val = df.iloc[-1:].Price.values[0]
+    for i in range(4):
+
+        features = ['Year', 'Month', 'DayOfWeek', 'Spring', 'Summer', 'Winter',
+                'Months_since_1992', 'lagged', 'Price_Lag_7', 
+                'Price_Rolling_Mean_7', 'Price_Rolling_Mean_30']
+        X = df[features]
+        y = df['Price']
+
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X)
+        
+        params = {'colsample_bytree': 0.9, 
+                'learning_rate': 0.1, 
+                'max_depth': 3, 
+                'min_child_weight': 3, 
+                'n_estimators': 200, 
+                'subsample': 1.0}
+        best_model = xgb.XGBRegressor(**params, random_state=42)
+        best_model.fit(X_train_scaled, y)
+
+            
+        temp_data = dc.add_row(df)
+        last_pred = best_model.predict(scaler.transform(temp_data[-1:][features]))
+        df.loc[df.index.values[-1], "Price"] = last_pred
+        temp_data.loc[temp_data.index.values[-1], "Price"] = last_pred
+    
+    percentage_change = (last_pred[0] - current_val) / current_val
+    return [last_pred[0], percentage_change]
+
+@st.cache_data
+def train_all_models():
+    regional_data = get_data()
+    predictions = {}
+    for k, v in regional_data.items():
+        predictions[k] = train_model(v)
+    return predictions
 
 def main():
     st.set_page_config(layout="wide")
     
-    regional_data = get_data()
-    print([data.columns for data in regional_data])
-
+    
+    predictions = train_all_models()
+    
+    
     st.title('New Zealand House Price Forecasting Map')
-
 
     regions = {
         "Auckland": [-36.8509, 174.7645],
@@ -73,10 +123,11 @@ def main():
     region_coordinates = regions[region]
     nz_map = folium.Map(location=region_coordinates, zoom_start=8)
 
-    # Optionally, add markers or other features based on the region
-    folium.Marker(region_coordinates, popup=region).add_to(nz_map)
+    folium.Marker(region_coordinates, popup=f'''{region.upper()}\n 
+                                            Predicted 2024 year end Median House Price: {predictions[region][0]}\n
+                                            Predicted Change from now: {predictions[region][1]}''').add_to(nz_map)
 
-    # Display the map
+
     st_display_map = st_folium(nz_map, width=1200, height=800)
 
 if __name__ == "__main__":
