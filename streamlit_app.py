@@ -1,44 +1,12 @@
 import streamlit as st
-import pandas as pd
 import folium
-import os
 import xgboost as xgb
 import data_cleaning as dc
-from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
 
 from streamlit_folium import st_folium
 from folium.plugins import Search
 
-global_regions = ['Auckland', 
-           'Bay of Plenty', 
-           'Canterbury', 
-           'Gisborne', 
-           "Hawke's Bay",
-            'Manawatu', 
-            'Marlborough', 
-            'Nelson', 
-            'Northland', 
-            'Otago',
-            'Southland', 
-            'Taranaki', 
-            'Tasman', 
-            'Waikato', 
-            'Wellington', 
-            'West Coast']
-
-@st.cache_data
-def get_data():
-    cwd = os.getcwd()
-    dir = f'{cwd}/datasets/processed'
-    regional_data = {}
-    i = 0
-    for file in os.listdir(dir):
-        data = pd.read_csv(os.path.join(dir, file))
-        dc.clean(data)
-        regional_data[global_regions[i]] = data
-        i+= 1
-    return regional_data
 
 def train_model(df):
     
@@ -75,7 +43,7 @@ def train_model(df):
 
 @st.cache_data
 def train_all_models():
-    regional_data = get_data()
+    regional_data = dc.get_data()
     predictions = {}
     for k, v in regional_data.items():
         predictions[k] = train_model(v)
@@ -124,7 +92,7 @@ def main():
     nz_map = folium.Map(location=region_coordinates, zoom_start=8)
 
     folium.Marker(region_coordinates, popup=f'''{region.upper()}\n 
-                                            Predicted 2024 year end Median House Price: {predictions[region][0]}\n
+                                            Predicted 2024 year end Median House Price: ${predictions[region][0]}\n
                                             Predicted Change from now: {predictions[region][1]}''').add_to(nz_map)
 
 
