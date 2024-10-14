@@ -2,13 +2,10 @@ import streamlit as st
 import folium
 import xgboost as xgb
 import data_cleaning as dc
-<<<<<<< HEAD
-=======
 import base64
+import os
 from sklearn.model_selection import train_test_split
->>>>>>> 72eb5b6 (Updated popups, adding images)
 from sklearn.preprocessing import StandardScaler
-
 from streamlit_folium import st_folium
 from folium.plugins import Search
 
@@ -104,11 +101,7 @@ def main():
     with open(region_image_path, "rb") as reg_img_file:
         converted_image = base64.b64encode(reg_img_file.read()).decode("utf-8")
 
-<<<<<<< HEAD
-    folium.Marker(region_coordinates, popup=f'''{region.upper()}\n 
-                                            Predicted 2024 year end Median House Price: ${predictions[region][0]}\n
-                                            Predicted Change from now: {predictions[region][1]}''').add_to(nz_map)
-=======
+
     # Have placed some basic styling for the popups
     # need to use html for folium popups  
     popup_styling = f'''
@@ -121,7 +114,7 @@ def main():
     '''
     popup_marker = folium.Popup(popup_styling, max_width=300)
     folium.Marker(region_coordinates, popup=popup_marker).add_to(nz_map)
->>>>>>> 72eb5b6 (Updated popups, adding images)
+
 
 
     st_display_map = st_folium(nz_map, width=2000, height=800)
